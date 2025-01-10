@@ -43,3 +43,20 @@ rm -f "$tmp_file"
 
 echo "All hosts have been updated."
 
+#How It Works:
+
+#   Host List: Replace host1, host2, etc., with the actual hostnames or IPs of the systems.
+#   Fetch Details: The script uses ssh to fetch the IP address (hostname -I), fully qualified domain name (hostname -f), and short name (hostname -s) from each host.
+#    Temporary File: Host information is aggregated into a temporary file.
+#   Update /etc/hosts: The script appends the new entries to /etc/hosts on each system using scp and ssh.
+
+#Prerequisites:
+
+ #   SSH keys must be set up for passwordless authentication between the hosts.
+ #   Ensure the user running this script has sudo privileges on all hosts if necessary.
+
+#Usage:
+
+#    Save the script to a file, e.g., update_hosts.sh.
+#    Make the script executable: chmod +x update_hosts.sh.
+#   Run the script: ./update_hosts.sh.
