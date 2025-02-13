@@ -54,3 +54,21 @@
           - rng-tools
           - haveged
         state: present
+
+#Explanation of Tasks:
+
+ #   Set swappiness to 1: Adjusts the kernel parameter for vm.swappiness and ensures it is loaded immediately and persists across reboots.
+ #   Disable transparent huge pages: Temporarily disables THP via the kernel and adds the setting to /etc/rc.local for persistence.
+ #   Set execute permissions for /etc/rc.d/rc.local: Ensures the script can be executed at boot.
+ #   Stop and disable firewalld: Stops the firewall service and ensures it won't start on reboot.
+ #   Set SELinux to permissive: Adjusts SELinux mode to permissive.
+ #   Stop and disable fapolicyd: Stops the file access policy daemon and disables it from starting on boot.
+ #   Install rng-tools and haveged: Ensures the required packages are installed for entropy management.
+
+#Usage
+
+#Save the playbook to a file, e.g., configure_rhel8.yml, and run it with:
+
+#ansible-playbook -i inventory_file configure_rhel8.yml
+
+#Replace inventory_file with your inventory file containing the target hosts.
