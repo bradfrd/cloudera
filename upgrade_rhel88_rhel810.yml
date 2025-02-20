@@ -1,0 +1,112 @@
+---
+- name: Upgrade RHEL 8.8 to RHEL 8.10
+  hosts: all
+  become: yes  # Run tasks with sudo privileges
+  vars:
+    rhel_version_target: "8.10"
+    reboot_timeout: 600  # Time in seconds to wait for reboot (adjust as needed)
+
+  tasks:
+    - name: Ensure system is registered with Red Hat Subscription Manager
+      command: subscription-manager status
+      register: sub_status
+      changed_when: false
+      failed_when: sub_status.rc != 0
+
+    - name: Refresh subscription data
+      command: subscription-manager refresh
+      when: sub_status.rc == 0
+
+    - name: Enable RHEL 8 repositories (BaseOS and AppStream)
+      command: subscription-manager repos --enable rhel-8-for-x86_64-baseos-rpms --enable rhel-8-for-x86_64-appstream-rpms
+      when: sub_status.rc == 0
+
+    - name: Check current RHEL version
+      command: cat /etc/redhat-release
+      register: current_version
+      changed_when: false
+
+    - name: Display current version
+      debug:
+        msg: "Current RHEL version: {{ current_version.stdout }}"
+
+    - name: Update all packages to the latest versions (upgrade to 8.10)
+      dnf:
+        name: "*"
+        state: latest
+        update_cache: yes
+      register: dnf_update
+
+    - name: Check if a reboot is required
+      command: needs-restarting -r
+      register: reboot_needed
+      changed_when: false
+      failed_when: false  # This command returns non-zero if reboot is needed, so we don’t fail here
+      when: dnf_update.changed
+
+    - name: Reboot the system if required
+      reboot:
+        reboot_timeout: "{{ reboot_timeout }}"
+      when: dnf_update.changed and reboot_needed.rc == 1
+
+    - name: Verify new RHEL version after upgrade
+      command: cat /etc/redhat-release
+      register: new_version
+      changed_when: false
+
+    - name: Display new RHEL version
+      debug:
+        msg: "New RHEL version after upgrade: {{ new_version.stdout }}"
+
+    - name: Ensure the system is running the target version
+      assert:
+        that:
+          - "'8.10' in new_version.stdout"
+        fail_msg: "The system did not upgrade to RHEL 8.10. Current version: {{ new_version.stdout }}"
+        success_msg: "Successfully upgraded to RHEL 8.10!"
+
+
+ #       Explanation of the Playbook
+
+ #   Hosts and Privileges:
+ #       hosts: all targets all systems in your inventory. Adjust this to specific hosts or groups as needed.
+ #       become: yes ensures tasks run with root privileges.
+ #   Variables:
+ #       rhel_version_target: Specifies the target version (8.10).
+ #       reboot_timeout: Time to wait for the system to come back online after a reboot.
+ #   Tasks:
+ #       Subscription Check: Verifies the system is subscribed to Red Hat.
+ #       Repository Enablement: Ensures the BaseOS and AppStream repositories are enabled (required for the upgrade).
+ #       Version Check: Displays the current RHEL version for reference.
+ #       Package Update: Uses dnf to upgrade all packages to the latest available versions, effectively moving the system to 8.10 if the repositories provide it.
+ #       Reboot Check: Uses needs-restarting -r (from yum-utils) to determine if a reboot is needed after the update.
+ #       Reboot: Reboots the system if required, with a configurable timeout.
+ #       Post-Upgrade Verification: Confirms the new version is 8.10.
+ #       Assertion: Validates the upgrade was successful by checking for "8.10" in the version string.
+
+ #Prerequisites
+
+  #  Install yum-utils if not already present (for needs-restarting). You can add this task at the beginning:
+  #  yaml
+
+   # - name: Install yum-utils
+   #   dnf:
+    #    name: yum-utils
+    #    state: present
+    #Ensure Ansible is installed on the control node and the target systems are accessible via SSH.
+
+#Running the Playbook
+
+ #   Save the playbook as upgrade_rhel_8.8_to_8.10.yml.
+ #   Run it with:
+ #   bash
+
+#ansible-playbook -i inventory upgrade_rhel_8.8_to_8.10.yml
+
+#Replace inventory with your inventory file or host list.
+
+#Notes
+
+ #   Repository Availability: The upgrade depends on the RHEL 8.10 packages being available in the enabled repositories. If you’re using a Satellite server, ensure it’s synced with 8.10 content.
+ #   Idempotency: The playbook is mostly idempotent, but the reboot task will trigger if updates were applied, even if the version is already 8.10.
+ #   Customization: Adjust the reboot_timeout based on your system’s reboot time. Add error handling or additional verification steps as needed.
